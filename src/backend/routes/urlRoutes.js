@@ -22,8 +22,8 @@ router.post('/extract-url-components', URLController.extractURLComponents);
  * @route GET /api/download/urls/json
  * @desc  Download all analyzed URLs as JSON file
  */
-router.get('/download/urls/json', (req, res) => {
-    const urls = fileStore.getAllURLs();
+router.get('/download/urls/json', async (req, res) => {
+    const urls = await fileStore.getAllURLs();
     res.setHeader('Content-Disposition', 'attachment; filename="url_analyses.json"');
     res.setHeader('Content-Type', 'application/json');
     res.send(JSON.stringify(urls, null, 2));
@@ -33,12 +33,12 @@ router.get('/download/urls/json', (req, res) => {
  * @route GET /api/download/urls/csv
  * @desc  Download all analyzed URLs as CSV file
  */
-router.get('/download/urls/csv', (req, res) => {
-    const urls = fileStore.getAllURLs();
+router.get('/download/urls/csv', async (req, res) => {
+    const urls = await fileStore.getAllURLs();
     const headers = ['id','timestamp','url','classification','threatScore','isMalicious'];
     const rows = urls.map(u => [
-        u.id,
-        u.timestamp,
+        u.id || u._id,
+        u.timestamp || u.createdAt,
         `"${(u.url || '').replace(/"/g, '""')}"`,
         u.classification || u.analysis?.classification || '',
         u.threatScore || u.analysis?.threatScore || '',
@@ -54,8 +54,8 @@ router.get('/download/urls/csv', (req, res) => {
  * @route GET /api/data/urls
  * @desc  View all stored URL records in browser (JSON pretty)
  */
-router.get('/data/urls', (req, res) => {
-    const urls = fileStore.getAllURLs();
+router.get('/data/urls', async (req, res) => {
+    const urls = await fileStore.getAllURLs();
     res.json({ total: urls.length, records: urls });
 });
 
@@ -63,8 +63,8 @@ router.get('/data/urls', (req, res) => {
  * @route DELETE /api/download/urls/clear
  * @desc  Clear all stored URL analysis records
  */
-router.delete('/download/urls/clear', (req, res) => {
-    fileStore.clearAll();
+router.delete('/download/urls/clear', async (req, res) => {
+    await fileStore.clearAll();
     res.json({ success: true, message: 'All URL records cleared' });
 });
 

@@ -1,116 +1,130 @@
-const fs = require('fs');
-const path = require('path');
+/**
+ * File Store (store/dataStore.js) — MongoDB-backed with in-memory fallback
+ * Used by emailRoutes.js, urlRoutes.js, and downloadRoutes.js
+ */
 
-const storeDir = path.join(__dirname);
+const { isDBConnected } = require('../config/db');
+const EmailAnalysis = require('../models/EmailAnalysis');
+const URLAnalysis = require('../models/URLAnalysis');
 
-// Initialize storage files
-const emailsFile = path.join(storeDir, 'emails.json');
-const urlsFile = path.join(storeDir, 'urls.json');
+// In-memory fallback arrays
+let memEmails = [];
+let memURLs   = [];
 
-// Ensure files exist
-if (!fs.existsSync(emailsFile)) {
-    fs.writeFileSync(emailsFile, JSON.stringify([], null, 2));
-}
-if (!fs.existsSync(urlsFile)) {
-    fs.writeFileSync(urlsFile, JSON.stringify([], null, 2));
-}
+class FileDataStore {
 
-class DataStore {
-    // Save analyzed email
-    saveEmail(emailData) {
+    // ── Save ──────────────────────────────────────────────────────────────────
+
+    async saveEmail(emailData) {
         try {
-            const emails = this.getAllEmails();
-            const entry = {
-                id: Date.now(),
-                timestamp: new Date().toISOString(),
-                ...emailData
-            };
-            emails.push(entry);
-            fs.writeFileSync(emailsFile, JSON.stringify(emails, null, 2));
+            if (isDBConnected()) {
+                const doc = await EmailAnalysis.create({
+                    subject: emailData.subject || 'No Subject',
+                    content: (emailData.content || '').substring(0, 200),
+                    fullContent: emailData.content,
+                    classification: emailData.classification || 'Safe',
+                    threatScore: emailData.threatScore || 0,
+                    isPhishing: emailData.isPhishing || false,
+                    fullAnalysis: emailData.analysis,
+                });
+                return { id: doc._id, ...emailData, timestamp: doc.createdAt };
+            }
+            // Fallback
+            const entry = { id: Date.now(), timestamp: new Date().toISOString(), ...emailData };
+            memEmails.unshift(entry);
+            if (memEmails.length > 200) memEmails.pop();
             return entry;
-        } catch (error) {
-            console.error('Error saving email:', error);
+        } catch (err) {
+            console.error('Error saving email:', err.message);
             return null;
         }
     }
 
-    // Save analyzed URL
-    saveURL(urlData) {
+    async saveURL(urlData) {
         try {
-            const urls = this.getAllURLs();
-            const entry = {
-                id: Date.now(),
-                timestamp: new Date().toISOString(),
-                ...urlData
-            };
-            urls.push(entry);
-            fs.writeFileSync(urlsFile, JSON.stringify(urls, null, 2));
+            if (isDBConnected()) {
+                const doc = await URLAnalysis.create({
+                    url: urlData.url,
+                    classification: urlData.classification || 'Safe',
+                    threatScore: urlData.threatScore || 0,
+                    isMalicious: urlData.isMalicious || false,
+                    fullAnalysis: urlData.analysis,
+                });
+                return { id: doc._id, ...urlData, timestamp: doc.createdAt };
+            }
+            const entry = { id: Date.now(), timestamp: new Date().toISOString(), ...urlData };
+            memURLs.unshift(entry);
+            if (memURLs.length > 200) memURLs.pop();
             return entry;
-        } catch (error) {
-            console.error('Error saving URL:', error);
+        } catch (err) {
+            console.error('Error saving URL:', err.message);
             return null;
         }
     }
 
-    // Get all emails
-    getAllEmails() {
-        try {
-            const data = fs.readFileSync(emailsFile, 'utf-8');
-            return JSON.parse(data);
-        } catch (error) {
-            console.error('Error reading emails:', error);
-            return [];
+    // ── Get All ───────────────────────────────────────────────────────────────
+
+    async getAllEmails() {
+        if (isDBConnected()) {
+            return await EmailAnalysis.find().sort({ createdAt: -1 }).lean();
         }
+        return memEmails;
     }
 
-    // Get all URLs
-    getAllURLs() {
-        try {
-            const data = fs.readFileSync(urlsFile, 'utf-8');
-            return JSON.parse(data);
-        } catch (error) {
-            console.error('Error reading URLs:', error);
-            return [];
+    async getAllURLs() {
+        if (isDBConnected()) {
+            return await URLAnalysis.find().sort({ createdAt: -1 }).lean();
         }
+        return memURLs;
     }
 
-    // Delete email
-    deleteEmail(id) {
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    async deleteEmail(id) {
         try {
-            const emails = this.getAllEmails();
-            const filtered = emails.filter(e => e.id !== parseInt(id));
-            fs.writeFileSync(emailsFile, JSON.stringify(filtered, null, 2));
+            if (isDBConnected()) {
+                await EmailAnalysis.findByIdAndDelete(id);
+                return true;
+            }
+            memEmails = memEmails.filter(e => String(e.id) !== String(id));
             return true;
-        } catch (error) {
-            console.error('Error deleting email:', error);
+        } catch (err) {
+            console.error('Error deleting email:', err.message);
             return false;
         }
     }
 
-    // Delete URL
-    deleteURL(id) {
+    async deleteURL(id) {
         try {
-            const urls = this.getAllURLs();
-            const filtered = urls.filter(u => u.id !== parseInt(id));
-            fs.writeFileSync(urlsFile, JSON.stringify(filtered, null, 2));
+            if (isDBConnected()) {
+                await URLAnalysis.findByIdAndDelete(id);
+                return true;
+            }
+            memURLs = memURLs.filter(u => String(u.id) !== String(id));
             return true;
-        } catch (error) {
-            console.error('Error deleting URL:', error);
+        } catch (err) {
+            console.error('Error deleting URL:', err.message);
             return false;
         }
     }
 
-    // Clear all data
-    clearAll() {
+    // ── Clear ──────────────────────────────────────────────────────────────────
+
+    async clearAll() {
         try {
-            fs.writeFileSync(emailsFile, JSON.stringify([], null, 2));
-            fs.writeFileSync(urlsFile, JSON.stringify([], null, 2));
+            if (isDBConnected()) {
+                await EmailAnalysis.deleteMany({});
+                await URLAnalysis.deleteMany({});
+            } else {
+                memEmails = [];
+                memURLs   = [];
+            }
             return true;
-        } catch (error) {
-            console.error('Error clearing data:', error);
+        } catch (err) {
+            console.error('Error clearing data:', err.message);
             return false;
         }
     }
 }
 
-module.exports = new DataStore();
+module.exports = new FileDataStore();

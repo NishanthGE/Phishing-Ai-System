@@ -49,8 +49,8 @@ class URLController {
             const processingTime = Date.now() - startTime;
 
             // Save to backend data stores (both in-memory and file-based)
-            const savedRecord = dataStore.saveURLAnalysis(url, analysis);
-            fileStore.saveURL({
+            const savedRecord = await dataStore.saveURLAnalysis(url, analysis);
+            await fileStore.saveURL({
                 url: url,
                 threatScore: analysis.threatScore,
                 classification: analysis.classification,

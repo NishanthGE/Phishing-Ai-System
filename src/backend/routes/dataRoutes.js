@@ -1,5 +1,5 @@
 /**
- * Data Routes
+ * Data Routes — MongoDB-backed
  * Endpoints for retrieving stored analysis data
  */
 
@@ -11,26 +11,13 @@ const router = express.Router();
  * GET /api/data/analyses
  * Get all stored analyses
  */
-router.get('/data/analyses', (req, res) => {
+router.get('/data/analyses', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 100;
-        const data = dataStore.getAllAnalyses(limit);
-        
-        res.json({
-            success: true,
-            data: data,
-            metadata: {
-                endpoint: 'data/analyses',
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            }
-        });
+        const data = await dataStore.getAllAnalyses(limit);
+        res.json({ success: true, data, metadata: { endpoint: 'data/analyses', version: '2.0.0', timestamp: new Date().toISOString() } });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve analyses',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to retrieve analyses', details: error.message });
     }
 });
 
@@ -38,26 +25,13 @@ router.get('/data/analyses', (req, res) => {
  * GET /api/data/emails
  * Get all email analyses
  */
-router.get('/data/emails', (req, res) => {
+router.get('/data/emails', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 50;
-        const data = dataStore.getEmailAnalyses(limit);
-        
-        res.json({
-            success: true,
-            data: data,
-            metadata: {
-                endpoint: 'data/emails',
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            }
-        });
+        const data = await dataStore.getEmailAnalyses(limit);
+        res.json({ success: true, data, metadata: { endpoint: 'data/emails', version: '2.0.0', timestamp: new Date().toISOString() } });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve email analyses',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to retrieve email analyses', details: error.message });
     }
 });
 
@@ -65,26 +39,13 @@ router.get('/data/emails', (req, res) => {
  * GET /api/data/urls
  * Get all URL analyses
  */
-router.get('/data/urls', (req, res) => {
+router.get('/data/urls', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 50;
-        const data = dataStore.getURLAnalyses(limit);
-        
-        res.json({
-            success: true,
-            data: data,
-            metadata: {
-                endpoint: 'data/urls',
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            }
-        });
+        const data = await dataStore.getURLAnalyses(limit);
+        res.json({ success: true, data, metadata: { endpoint: 'data/urls', version: '2.0.0', timestamp: new Date().toISOString() } });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve URL analyses',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to retrieve URL analyses', details: error.message });
     }
 });
 
@@ -92,33 +53,15 @@ router.get('/data/urls', (req, res) => {
  * GET /api/data/email/:id
  * Get specific email analysis
  */
-router.get('/data/email/:id', (req, res) => {
+router.get('/data/email/:id', async (req, res) => {
     try {
-        const analysis = dataStore.getEmailAnalysisById(req.params.id);
-        
+        const analysis = await dataStore.getEmailAnalysisById(req.params.id);
         if (!analysis) {
-            return res.status(404).json({
-                success: false,
-                error: 'Email analysis not found',
-                id: req.params.id
-            });
+            return res.status(404).json({ success: false, error: 'Email analysis not found', id: req.params.id });
         }
-        
-        res.json({
-            success: true,
-            data: analysis,
-            metadata: {
-                endpoint: 'data/email/:id',
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            }
-        });
+        res.json({ success: true, data: analysis, metadata: { endpoint: 'data/email/:id', version: '2.0.0', timestamp: new Date().toISOString() } });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve email analysis',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to retrieve email analysis', details: error.message });
     }
 });
 
@@ -126,33 +69,15 @@ router.get('/data/email/:id', (req, res) => {
  * GET /api/data/url/:id
  * Get specific URL analysis
  */
-router.get('/data/url/:id', (req, res) => {
+router.get('/data/url/:id', async (req, res) => {
     try {
-        const analysis = dataStore.getURLAnalysisById(req.params.id);
-        
+        const analysis = await dataStore.getURLAnalysisById(req.params.id);
         if (!analysis) {
-            return res.status(404).json({
-                success: false,
-                error: 'URL analysis not found',
-                id: req.params.id
-            });
+            return res.status(404).json({ success: false, error: 'URL analysis not found', id: req.params.id });
         }
-        
-        res.json({
-            success: true,
-            data: analysis,
-            metadata: {
-                endpoint: 'data/url/:id',
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            }
-        });
+        res.json({ success: true, data: analysis, metadata: { endpoint: 'data/url/:id', version: '2.0.0', timestamp: new Date().toISOString() } });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve URL analysis',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to retrieve URL analysis', details: error.message });
     }
 });
 
@@ -160,25 +85,12 @@ router.get('/data/url/:id', (req, res) => {
  * GET /api/data/stats
  * Get statistics of all analyses
  */
-router.get('/data/stats', (req, res) => {
+router.get('/data/stats', async (req, res) => {
     try {
-        const stats = dataStore.getStats();
-        
-        res.json({
-            success: true,
-            data: stats,
-            metadata: {
-                endpoint: 'data/stats',
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            }
-        });
+        const stats = await dataStore.getStats();
+        res.json({ success: true, data: stats, metadata: { endpoint: 'data/stats', version: '2.0.0', timestamp: new Date().toISOString() } });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve statistics',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to retrieve statistics', details: error.message });
     }
 });
 
@@ -186,25 +98,12 @@ router.get('/data/stats', (req, res) => {
  * DELETE /api/data/clear
  * Clear all data
  */
-router.delete('/data/clear', (req, res) => {
+router.delete('/data/clear', async (req, res) => {
     try {
-        dataStore.clearAll();
-        
-        res.json({
-            success: true,
-            message: 'All data cleared',
-            metadata: {
-                endpoint: 'data/clear',
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            }
-        });
+        await dataStore.clearAll();
+        res.json({ success: true, message: 'All data cleared', metadata: { endpoint: 'data/clear', version: '2.0.0', timestamp: new Date().toISOString() } });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Failed to clear data',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to clear data', details: error.message });
     }
 });
 

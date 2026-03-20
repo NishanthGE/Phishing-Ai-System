@@ -1,3 +1,8 @@
+/**
+ * Download Routes — MongoDB-backed
+ * Used by /api/download/* endpoints
+ */
+
 const express = require('express');
 const router = express.Router();
 const dataStore = require('../store/dataStore');
@@ -9,8 +14,8 @@ function jsonToCSV(data, type) {
     if (type === 'email') {
         const headers = ['ID', 'Timestamp', 'Subject', 'Threat Score', 'Classification', 'Is Phishing'];
         const rows = data.map(item => [
-            item.id,
-            item.timestamp,
+            item.id || item._id,
+            item.timestamp || item.createdAt,
             `"${item.subject ? item.subject.replace(/"/g, '""') : 'N/A'}"`,
             item.threatScore || 0,
             item.classification || 'Unknown',
@@ -20,8 +25,8 @@ function jsonToCSV(data, type) {
     } else if (type === 'url') {
         const headers = ['ID', 'Timestamp', 'URL', 'Threat Score', 'Classification', 'Is Malicious'];
         const rows = data.map(item => [
-            item.id,
-            item.timestamp,
+            item.id || item._id,
+            item.timestamp || item.createdAt,
             `"${item.url ? item.url.replace(/"/g, '""') : 'N/A'}"`,
             item.threatScore || 0,
             item.classification || 'Unknown',
@@ -32,25 +37,20 @@ function jsonToCSV(data, type) {
     return '';
 }
 
-// Get all emails
-router.get('/emails/json', (req, res) => {
+// Get all emails (JSON view)
+router.get('/emails/json', async (req, res) => {
     try {
-        const emails = dataStore.getAllEmails();
-        res.json({
-            success: true,
-            count: emails.length,
-            data: emails,
-            timestamp: new Date().toISOString()
-        });
+        const emails = await dataStore.getAllEmails();
+        res.json({ success: true, count: emails.length, data: emails, timestamp: new Date().toISOString() });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
 // Download emails as JSON
-router.get('/emails/download-json', (req, res) => {
+router.get('/emails/download-json', async (req, res) => {
     try {
-        const emails = dataStore.getAllEmails();
+        const emails = await dataStore.getAllEmails();
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', `attachment; filename="phishing_emails_${Date.now()}.json"`);
         res.send(JSON.stringify(emails, null, 2));
@@ -60,9 +60,9 @@ router.get('/emails/download-json', (req, res) => {
 });
 
 // Download emails as CSV
-router.get('/emails/download-csv', (req, res) => {
+router.get('/emails/download-csv', async (req, res) => {
     try {
-        const emails = dataStore.getAllEmails();
+        const emails = await dataStore.getAllEmails();
         const csv = jsonToCSV(emails, 'email');
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="phishing_emails_${Date.now()}.csv"`);
@@ -72,25 +72,20 @@ router.get('/emails/download-csv', (req, res) => {
     }
 });
 
-// Get all URLs
-router.get('/urls/json', (req, res) => {
+// Get all URLs (JSON view)
+router.get('/urls/json', async (req, res) => {
     try {
-        const urls = dataStore.getAllURLs();
-        res.json({
-            success: true,
-            count: urls.length,
-            data: urls,
-            timestamp: new Date().toISOString()
-        });
+        const urls = await dataStore.getAllURLs();
+        res.json({ success: true, count: urls.length, data: urls, timestamp: new Date().toISOString() });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
 // Download URLs as JSON
-router.get('/urls/download-json', (req, res) => {
+router.get('/urls/download-json', async (req, res) => {
     try {
-        const urls = dataStore.getAllURLs();
+        const urls = await dataStore.getAllURLs();
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', `attachment; filename="malicious_urls_${Date.now()}.json"`);
         res.send(JSON.stringify(urls, null, 2));
@@ -100,9 +95,9 @@ router.get('/urls/download-json', (req, res) => {
 });
 
 // Download URLs as CSV
-router.get('/urls/download-csv', (req, res) => {
+router.get('/urls/download-csv', async (req, res) => {
     try {
-        const urls = dataStore.getAllURLs();
+        const urls = await dataStore.getAllURLs();
         const csv = jsonToCSV(urls, 'url');
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="malicious_urls_${Date.now()}.csv"`);
@@ -113,13 +108,10 @@ router.get('/urls/download-csv', (req, res) => {
 });
 
 // Delete all data
-router.delete('/clear', (req, res) => {
+router.delete('/clear', async (req, res) => {
     try {
-        const success = dataStore.clearAll();
-        res.json({
-            success: success,
-            message: success ? 'All data cleared successfully' : 'Failed to clear data'
-        });
+        const success = await dataStore.clearAll();
+        res.json({ success, message: success ? 'All data cleared successfully' : 'Failed to clear data' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

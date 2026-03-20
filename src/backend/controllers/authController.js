@@ -83,7 +83,7 @@ exports.login = async (req, res) => {
         }
 
         // Find user
-        const user = UserStore.findByUsername(username);
+        const user = await UserStore.findByUsername(username);
         if (!user) {
             // FIXED CWE-208: Use timing-safe comparison to prevent timing attacks
             // FIXED CWE-798,259: Demo credentials from env variables
@@ -146,7 +146,7 @@ exports.login = async (req, res) => {
 /**
  * Get current user/profile (protected)
  */
-exports.profile = (req, res) => {
+exports.profile = async (req, res) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
         if (!token) {
@@ -158,10 +158,11 @@ exports.profile = (req, res) => {
         }
 
         const decoded = jwt.verify(token, JWT_SECRET);
+        const allUsers = await UserStore.getAll();
         res.json({
             success: true,
             data: { username: decoded.username },
-            metadata: UserStore.getAll()
+            metadata: { userCount: allUsers.length }
         });
     } catch (error) {
         res.status(401).json({
@@ -175,13 +176,14 @@ exports.profile = (req, res) => {
 /**
  * Get all users (admin only, demo)
  */
-exports.getUsers = (req, res) => {
+exports.getUsers = async (req, res) => {
     try {
-        const users = UserStore.getAll();
+        const users = await UserStore.getAll();
+        const { isDBConnected } = require('../config/db');
         res.json({
             success: true,
             data: { users, total: users.length },
-            metadata: { storeType: 'in-memory' }
+            metadata: { storeType: isDBConnected() ? 'mongodb' : 'in-memory' }
         });
     } catch (error) {
         res.status(500).json({

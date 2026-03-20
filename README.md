@@ -1,16 +1,17 @@
 # AI-Based Phishing Detection System
 
-## 🛡️ Real ML-Powered Cybersecurity — Naive Bayes + Random Forest
+## 🛡️ Real ML-Powered Cybersecurity — Naive Bayes + Random Forest + MongoDB
 
-A cybersecurity capstone project that uses **real machine learning** (no keyword lists) to detect phishing emails and malicious URLs. Features a premium dark cyberpunk/glassmorphism frontend and a fully documented REST API.
+A cybersecurity capstone project that uses **real machine learning** (no keyword lists) to detect phishing emails and malicious URLs. Features a premium dark cyberpunk/glassmorphism frontend, a fully documented REST API, and **MongoDB** for persistent data storage.
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Node.js** v16+ 
+- **Node.js** v14+
 - **npm**
+- **MongoDB** (local or Atlas)
 - Modern browser (Chrome / Edge / Firefox)
 
 ### Start the System
@@ -20,12 +21,17 @@ A cybersecurity capstone project that uses **real machine learning** (no keyword
 cd d:\CapstoneNew\Capstone\phishing-ai-system
 npm install
 
-# 2. Start backend API (port 8081)
+# 2. (Optional) Start MongoDB — run as Administrator
+net start MongoDB
+
+# 3. Start backend API (port 8081)
 node src/backend/server.js
 
-# 3. In a second terminal — start frontend (port 8080)
+# 4. In a second terminal — start frontend (port 8080)
 node src/backend/frontend-server.js
 ```
+
+> **Note:** If MongoDB is not running, the server automatically falls back to in-memory storage.
 
 ### Access
 | Service | URL |
@@ -40,6 +46,28 @@ node src/backend/frontend-server.js
 |-------|-------|
 | Username | `admin` |
 | Password | `password123` |
+
+---
+
+## 🗄️ Database — MongoDB
+
+The system now uses **MongoDB + Mongoose** for persistent storage:
+
+| Collection | Stores |
+|------------|--------|
+| `users` | Registered user accounts |
+| `emailanalyses` | All email scan results |
+| `urlanalyses` | All URL scan results |
+
+**Connection string** (default):
+```
+mongodb://localhost:27017/phishing-ai-system
+```
+
+Override via environment variable:
+```bash
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/phishing-ai-system
+```
 
 ---
 
@@ -72,9 +100,18 @@ phishing-ai-system/
 │   ├── backend/
 │   │   ├── server.js                  # Express API server (port 8081)
 │   │   ├── frontend-server.js         # Static file server (port 8080)
+│   │   ├── config/
+│   │   │   └── db.js                  # ★ MongoDB connection config
+│   │   ├── models/
+│   │   │   ├── User.js                # ★ Mongoose User schema
+│   │   │   ├── EmailAnalysis.js       # ★ Mongoose EmailAnalysis schema
+│   │   │   └── URLAnalysis.js         # ★ Mongoose URLAnalysis schema
 │   │   ├── routes/
+│   │   │   ├── authRoutes.js
 │   │   │   ├── emailRoutes.js
-│   │   │   └── urlRoutes.js
+│   │   │   ├── urlRoutes.js
+│   │   │   ├── dataRoutes.js
+│   │   │   └── downloadRoutes.js
 │   │   ├── controllers/
 │   │   │   ├── emailController.js
 │   │   │   ├── urlController.js
@@ -82,11 +119,14 @@ phishing-ai-system/
 │   │   ├── services/
 │   │   │   ├── emailAnalyzer.js       # ML email classification
 │   │   │   └── urlAnalyzer.js         # ML URL classification
-│   │   └── utils/
-│   │       ├── aiEngine.js            # ★ Core ML engine (NB + RF)
-│   │       ├── featureExtractor.js    # Legacy feature extraction
-│   │       ├── explainableAI.js       # Explanation generation
-│   │       └── userStore.js           # In-memory user store
+│   │   ├── utils/
+│   │   │   ├── aiEngine.js            # ★ Core ML engine (NB + RF)
+│   │   │   ├── dataStore.js           # MongoDB-backed analysis store
+│   │   │   ├── userStore.js           # MongoDB-backed user store
+│   │   │   ├── explainableAI.js       # Explanation generation
+│   │   │   └── featureExtractor.js    # URL feature extraction
+│   │   └── store/
+│   │       └── dataStore.js           # Store used by routes/downloads
 │   └── frontend/
 │       ├── index.html                 # Cyberpunk UI dashboard
 │       ├── style.css                  # Glassmorphism dark theme
@@ -94,6 +134,7 @@ phishing-ai-system/
 ├── datasets/
 │   ├── phishing_keywords.json
 │   └── malicious_url_patterns.json
+├── .env.example                       # ★ Environment variable template
 ├── package.json
 └── README.md
 ```
@@ -127,12 +168,6 @@ Authorization: Bearer <token>
 { "url": "https://example.com" }
 ```
 
-**Response includes:**
-- `classification`: `Safe` | `Suspicious` | `Malicious`
-- `threatScore`: 0–100
-- `mlEngine`: `{ name, treeVotes }`
-- `explanation`: `{ riskFactors, recommendation }`
-
 ### Batch Analysis
 ```http
 POST /api/analyze-emails-batch   # up to 10 emails
@@ -143,6 +178,17 @@ POST /api/analyze-urls-batch     # up to 20 URLs
 ```http
 POST /api/auth/signup   { "username", "password" }
 POST /api/auth/login    { "username", "password" }
+```
+
+### Data / Download Endpoints
+```http
+GET /api/data/emails                        # All stored email analyses
+GET /api/data/urls                          # All stored URL analyses
+GET /api/data/stats                         # Threat statistics
+GET /api/download/emails/download-json      # Download emails as JSON
+GET /api/download/emails/download-csv       # Download emails as CSV
+GET /api/download/urls/download-json        # Download URLs as JSON
+GET /api/download/urls/download-csv         # Download URLs as CSV
 ```
 
 ---
@@ -162,7 +208,6 @@ POST /api/auth/login    { "username", "password" }
 - **Premium dark cyberpunk** theme with glassmorphism cards
 - Animated neon grid background + floating orbs
 - Neon cyan/purple accent palette
-- Frosted-glass frosted panels with hover glow
 - Color-coded results (green / yellow / red)
 - Toast notifications with glow effects
 - `JetBrains Mono` + `Inter` typography
@@ -174,7 +219,9 @@ POST /api/auth/login    { "username", "password" }
 - **Helmet.js** — HTTP security headers
 - **CORS** — Cross-origin protection
 - **Rate limiting** — 100 req/15 min per IP
-- **JWT authentication** — Bearer token auth
+- **JWT authentication** — Bearer token auth (7-day expiry)
+- **bcryptjs** — Password hashing (12 salt rounds)
+- **Timing-safe comparison** — Prevents login timing attacks
 - **Input validation** — Max size / format checks
 - **Laplace smoothing** — Prevents zero-probability NB edge cases
 

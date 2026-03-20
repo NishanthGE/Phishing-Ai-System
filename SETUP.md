@@ -2,8 +2,9 @@
 
 ## System Requirements
 - **OS**: Windows 10/11 (tested), Linux/macOS compatible
-- **Node.js**: v16.0.0 or higher (v25 recommended)
+- **Node.js**: v14.0.0 or higher
 - **npm**: v8+
+- **MongoDB**: v5+ (local) or MongoDB Atlas (cloud)
 - **Browser**: Chrome, Edge, Firefox (latest)
 - **Ports**: 8080 (frontend), 8081 (backend) — must be free
 
@@ -25,13 +26,46 @@ Key packages installed:
 | Package | Purpose |
 |---------|---------|
 | `express` | HTTP server framework |
+| `mongoose` | MongoDB ODM — database integration |
 | `helmet` | Security headers |
 | `cors` | Cross-origin resource sharing |
 | `express-rate-limit` | Rate limiting |
-| `validator` | URL validation |
-| `natural` | NLP / sentiment analysis (legacy) |
+| `validator` | URL/input validation |
+| `natural` | NLP (legacy feature extractor) |
 | `bcryptjs` | Password hashing |
 | `jsonwebtoken` | JWT auth tokens |
+
+### Step 3 — (Optional) Configure Environment
+
+Copy `.env.example` to `.env` and set your values:
+```bash
+copy .env.example .env
+```
+
+Key variables:
+```env
+MONGODB_URI=mongodb://localhost:27017/phishing-ai-system
+JWT_SECRET=your-secret-key
+DEMO_USERNAME=admin
+DEMO_PASSWORD=password123
+PORT=8081
+```
+
+---
+
+## Starting MongoDB
+
+### Windows (as Administrator)
+```bash
+net start MongoDB
+```
+
+### Manual start
+```bash
+mongod --dbpath C:\data\db
+```
+
+> If MongoDB is not available, the server automatically falls back to **in-memory storage** — no crash, no config needed.
 
 ---
 
@@ -43,9 +77,9 @@ node src/backend/server.js
 ```
 Expected output:
 ```
+✅ MongoDB connected: mongodb://localhost:27017/phishing-ai-system
 🚀 AI-Based Phishing Detection System
 🔧 Backend API running on: http://localhost:8081
-✅ Naive Bayes v3.2 trained: 60 phishing, 100 legit
 ```
 
 ### Terminal 2 — Frontend
@@ -56,18 +90,24 @@ Expected: Frontend serving on http://localhost:8080
 
 ---
 
-## Environment Notes
+## MongoDB Collections
 
-- No `.env` file needed — all config is hardcoded for local development
-- User accounts are stored **in-memory** (reset on server restart)
-- ML model trains **in-memory** on startup from hardcoded datasets in `aiEngine.js`
-- The `datasets/` folder JSONs are used only by legacy featureExtractor — not the ML engine
+After the server runs and you analyze some emails/URLs, MongoDB will have:
+
+| Collection | Contents |
+|------------|---------|
+| `users` | Registered accounts (username + bcrypt password) |
+| `emailanalyses` | Full email scan results with ML scores |
+| `urlanalyses` | Full URL scan results with RF tree votes |
+
+View with **MongoDB Compass** → connect to `mongodb://localhost:27017` → open `phishing-ai-system`.
 
 ---
 
 ## Verify Setup
 
 ```
-http://localhost:8081/api/health   → should return { status: "ok" }
-http://localhost:8080              → should show login page
+http://localhost:8081/api/health   → { status: "healthy" }
+http://localhost:8081/api/data/stats → DB statistics
+http://localhost:8080              → Login page
 ```

@@ -21,8 +21,8 @@ router.get('/sample-email', EmailController.getSampleEmail);
  * @route GET /api/download/emails/json
  * @desc  Download all analyzed emails as JSON file
  */
-router.get('/download/emails/json', (req, res) => {
-    const emails = fileStore.getAllEmails();
+router.get('/download/emails/json', async (req, res) => {
+    const emails = await fileStore.getAllEmails();
     res.setHeader('Content-Disposition', 'attachment; filename="email_analyses.json"');
     res.setHeader('Content-Type', 'application/json');
     res.send(JSON.stringify(emails, null, 2));
@@ -32,12 +32,12 @@ router.get('/download/emails/json', (req, res) => {
  * @route GET /api/download/emails/csv
  * @desc  Download all analyzed emails as CSV file
  */
-router.get('/download/emails/csv', (req, res) => {
-    const emails = fileStore.getAllEmails();
+router.get('/download/emails/csv', async (req, res) => {
+    const emails = await fileStore.getAllEmails();
     const headers = ['id','timestamp','subject','classification','threatScore','isPhishing'];
     const rows = emails.map(e => [
-        e.id,
-        e.timestamp,
+        e.id || e._id,
+        e.timestamp || e.createdAt,
         `"${(e.subject || '').replace(/"/g, '""')}"`,
         e.classification || e.analysis?.classification || '',
         e.threatScore || e.analysis?.threatScore || '',
@@ -53,8 +53,8 @@ router.get('/download/emails/csv', (req, res) => {
  * @route GET /api/data/emails
  * @desc  View all stored email records in browser (JSON pretty)
  */
-router.get('/data/emails', (req, res) => {
-    const emails = fileStore.getAllEmails();
+router.get('/data/emails', async (req, res) => {
+    const emails = await fileStore.getAllEmails();
     res.json({ total: emails.length, records: emails });
 });
 
@@ -62,8 +62,8 @@ router.get('/data/emails', (req, res) => {
  * @route DELETE /api/download/emails/clear
  * @desc  Clear all stored email analysis records
  */
-router.delete('/download/emails/clear', (req, res) => {
-    fileStore.clearAll();
+router.delete('/download/emails/clear', async (req, res) => {
+    await fileStore.clearAll();
     res.json({ success: true, message: 'All email records cleared' });
 });
 

@@ -1,5 +1,12 @@
 # 🚀 Quick Start Guide
 
+## Prerequisites
+
+- **Node.js** v14+ — [nodejs.org](https://nodejs.org)
+- **MongoDB** running locally (or MongoDB Atlas)
+
+---
+
 ## 1️⃣ Install Dependencies
 
 ```bash
@@ -9,7 +16,18 @@ npm install
 
 ---
 
-## 2️⃣ Start Backend API
+## 2️⃣ Start MongoDB (Run as Administrator)
+
+```bash
+net start MongoDB
+```
+
+> If you see "Access Denied", open PowerShell/CMD **as Administrator** and retry.  
+> **Without MongoDB** the server still works — it falls back to in-memory storage automatically.
+
+---
+
+## 3️⃣ Start Backend API
 
 Open **Terminal 1**:
 ```bash
@@ -19,14 +37,14 @@ node src/backend/server.js
 
 You should see:
 ```
+✅ MongoDB connected: mongodb://localhost:27017/phishing-ai-system
 🚀 AI-Based Phishing Detection System
 🔧 Backend API running on: http://localhost:8081
-✅ Naive Bayes v3.2 trained: 60 phishing, 100 legit | vocab=...
 ```
 
 ---
 
-## 3️⃣ Start Frontend Server
+## 4️⃣ Start Frontend Server
 
 Open **Terminal 2**:
 ```bash
@@ -36,13 +54,13 @@ node src/backend/frontend-server.js
 
 ---
 
-## 4️⃣ Open the Dashboard
+## 5️⃣ Open the Dashboard
 
 Navigate to: **http://localhost:8080**
 
 ---
 
-## 5️⃣ Login
+## 6️⃣ Login
 
 | Field | Value |
 |-------|-------|
@@ -53,7 +71,7 @@ Or create your own account via the **Sign Up** link.
 
 ---
 
-## 6️⃣ Test the AI Engine
+## 7️⃣ Test the AI Engine
 
 ### Test a Phishing Email
 Paste this into the Email tab and click **Analyze Email**:
@@ -83,13 +101,14 @@ http://paypal-security.verify-account.tk/login/confirm
 
 ---
 
-## 7️⃣ Verify Backend Health
+## 8️⃣ View Backend Data
 
-```
-http://localhost:8081/api/health
-```
-
-Should return JSON with `status: "ok"`.
+| What | URL |
+|------|-----|
+| Email analyses | http://localhost:8081/api/data/emails |
+| URL analyses | http://localhost:8081/api/data/urls |
+| Statistics | http://localhost:8081/api/data/stats |
+| Health check | http://localhost:8081/api/health |
 
 ---
 
@@ -97,7 +116,9 @@ Should return JSON with `status: "ok"`.
 
 | Problem | Fix |
 |---------|-----|
-| Port 8081 already in use | Run `netstat -ano \| findstr :8081` → `taskkill /PID <id> /F` |
+| Port 8081 already in use | `netstat -ano \| findstr :8081` → `taskkill /PID <id> /F` |
 | Frontend shows blank page | Check frontend-server.js is running on port 8080 |
 | Login fails | Try `admin` / `password123` or create a new account |
 | Analysis returns error | Make sure backend (8081) is running before frontend |
+| MongoDB "Access Denied" | Run terminal **as Administrator** → `net start MongoDB` |
+| MongoDB not installed | Data saves in-memory — install MongoDB for persistence |

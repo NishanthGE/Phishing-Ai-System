@@ -52,8 +52,8 @@ class EmailController {
             const processingTime = Date.now() - startTime;
 
             // Save to backend data stores (both in-memory and file-based)
-            const savedRecord = dataStore.saveEmailAnalysis(emailContent, analysis);
-            fileStore.saveEmail({
+            const savedRecord = await dataStore.saveEmailAnalysis(emailContent, analysis);
+            await fileStore.saveEmail({
                 subject: emailContent.match(/Subject: (.*)/)?.[1] || 'No Subject',
                 content: emailContent,
                 threatScore: analysis.threatScore,

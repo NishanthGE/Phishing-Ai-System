@@ -1,74 +1,83 @@
 # ✅ Changes Summary
 
-**Version:** 3.2.0  
+**Version:** 4.0.0  
 **Last Updated:** March 2026  
 **Project Path:** `d:\CapstoneNew\Capstone\phishing-ai-system`
 
 ---
 
-## 🧠 Phase 3 — Real ML Engine (LATEST)
+## 🗄️ Phase 4 — MongoDB Integration (LATEST)
 
-### New File: `src/backend/utils/aiEngine.js`
-The entire detection backend has been replaced with a **real machine learning engine**:
+### New Files
+- `src/backend/config/db.js` — MongoDB connection with **graceful in-memory fallback**
+- `src/backend/models/User.js` — Mongoose User schema (username, hashed password, timestamps)
+- `src/backend/models/EmailAnalysis.js` — Mongoose EmailAnalysis schema (classification, threatScore, full analysis JSON)
+- `src/backend/models/URLAnalysis.js` — Mongoose URLAnalysis schema (url, classification, threatScore, tree votes)
+- `.env.example` — Environment variable template (MONGODB_URI, JWT_SECRET, PORT)
+
+### Updated: `src/backend/utils/userStore.js`
+- All methods now **async** — uses Mongoose when MongoDB is connected
+- Automatic fallback to JavaScript `Map` (in-memory) if DB is unavailable
+
+### Updated: `src/backend/utils/dataStore.js`
+- All methods now **async** — uses `EmailAnalysis` and `URLAnalysis` Mongoose models
+- Automatic fallback to in-memory arrays if DB is unavailable
+- `getStats()` now returns real DB counts and threat breakdown
+
+### Updated: `src/backend/store/dataStore.js`
+- Rewritten to use MongoDB — `saveEmail()`, `saveURL()`, `getAllEmails()`, `getAllURLs()`, `clearAll()` — all async
+
+### Updated: `src/backend/server.js`
+- Calls `connectDB()` at startup (async IIFE wraps the `app.listen()` call)
+- Server starts even if MongoDB is unavailable
+
+### Updated: `src/backend/controllers/authController.js`
+- `login()`, `profile()`, `getUsers()` now properly `await` the async UserStore methods
+
+### Updated: `src/backend/controllers/emailController.js`
+- `analyzeEmail()` now `await`s `dataStore.saveEmailAnalysis()` and `fileStore.saveEmail()`
+
+### Updated: `src/backend/controllers/urlController.js`
+- `analyzeURL()` now `await`s `dataStore.saveURLAnalysis()` and `fileStore.saveURL()`
+
+### Updated: All Routes
+- `emailRoutes.js`, `urlRoutes.js`, `dataRoutes.js`, `downloadRoutes.js` — all route handlers now `async` and `await` store calls
+
+---
+
+## 🧠 Phase 3 — Real ML Engine (v3.2)
+
+### `src/backend/utils/aiEngine.js`
+Complete detection engine replacement:
 
 #### Email — Multinomial Naive Bayes (v3.2)
 - Trained on 160 labeled emails (60 phishing + 100 legit) on server startup
 - TF-IDF-style log-likelihood scoring with Laplace smoothing
-- **37+ stopword list** removes ambiguous words that caused false positives
-- **Per-document token deduplication** prevents word repetition from amplifying scores
-- **`formalEmailScore()` context detector** — 15 regex rules that recognize professional emails (cover letters, academic emails, internship applications) and dampen the NB score by up to 85%
-- Classification thresholds: Phishing ≥ 72, Suspicious ≥ 48
-- Prior biased toward legitimate (55/45) to reduce false positive rate
+- **37+ stopword list** removes ambiguous words
+- **Per-document token deduplication** prevents word repetition amplifying scores
+- **`formalEmailScore()`** — 15 regex rules recognize professional emails, dampen NB score by up to 85%
+- Thresholds: Phishing ≥ 72, Suspicious ≥ 48; prior biased 55% legit
 
 #### URL — Random Forest Ensemble (5 Trees)
-- 5 hand-engineered decision trees each scoring a different threat dimension
-- Weighted ensemble aggregation (Tree 1: 30%, Tree 2: 20%, Tree 3: 25%, Tree 4: 15%, Tree 5: 10%)
-- Risk factor extraction with severity labels (critical / high / medium)
-- Detects: IP addresses, excessive subdomains, brand impersonation, URL shorteners, punycode homograph attacks, suspicious TLDs, open redirect params
-
-### Updated: `src/backend/services/emailAnalyzer.js`
-- Now calls `classifyEmail()` from `aiEngine.js`
-- Returns ML engine metadata: top phishing tokens, top safe tokens, formal score
-- Keeps legacy `featureExtractor.js` call for enriched feature display
-
-### Updated: `src/backend/services/urlAnalyzer.js`
-- Now calls `classifyURL()` from `aiEngine.js`
-- Returns RF tree votes in response for transparency
-- Keeps security checks (domain reputation, redirect pattern analysis)
+- Weighted ensemble: Tree 1 (30%), 2 (20%), 3 (25%), 4 (15%), 5 (10%)
+- Detects: IP addresses, brand impersonation, URL shorteners, punycode, suspicious TLDs
 
 ---
 
 ## 🎨 Phase 2 — Premium UI Overhaul
 
-### `src/frontend/style.css` — Complete Rewrite
 - Dark cyberpunk/glassmorphism theme
-- CSS variables for neon cyan/purple color system
 - Animated grid background + floating orbs
-- Frosted-glass cards with hover glow effects
-- Color-coded results (green=safe, yellow=suspicious, red=phishing)
-- Toast notifications with border-glow by type
-- `JetBrains Mono` + `Inter` Google Fonts
-
-### `src/frontend/index.html` — Full Rewrite
-- Two-column login layout (brand panel + form panel)
-- Animated shimmer title, version badge, live stats bar
-- Feature cards with icon + description
-- Trust badge, terminal icon header
-- Animated grid background div + floating orb divs
-- Fixed `id="modal-subtitle"` for JS compatibility
+- Google Fonts: Inter + JetBrains Mono
+- Color-coded results, toast notifications with glow
 
 ---
 
 ## 🔧 Phase 1 — Backend Auth
 
-### New Files
-- `src/backend/utils/userStore.js` — in-memory user storage
-- `src/backend/controllers/authController.js` — signup/login handlers
-- `src/backend/routes/authRoutes.js` — auth endpoint routing
-
-### Updated: `src/backend/server.js`
-- Registered auth routes at `/api/auth`
-- Frontend served from port 8080 (separate frontend-server.js)
+- JWT authentication (7-day tokens)
+- bcryptjs password hashing (12 salt rounds)
+- Timing-safe login comparison (CWE-208 fix)
 
 ---
 

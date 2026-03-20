@@ -1,12 +1,14 @@
 # Quick Start Testing Guide
 
 **Backend:** http://localhost:8081  
-**Frontend:** http://localhost:8080
+**Frontend:** http://localhost:8080  
+**Version:** 4.0.0
 
 ---
 
 ## Pre-Test Checklist
 
+- [ ] (Optional) MongoDB running: `net start MongoDB` (as Administrator)
 - [ ] Backend running: `node src/backend/server.js` (Terminal 1)
 - [ ] Frontend running: `node src/backend/frontend-server.js` (Terminal 2)
 - [ ] Health check passes: http://localhost:8081/api/health
@@ -68,19 +70,29 @@
 
 ---
 
-## Test 6 — Batch Email Analysis
+## Test 6 — Verify Data Saved to MongoDB
 
-1. Click **Batch Analysis** tab
-2. Select **Emails**
-3. Enter multiple emails (one per box)
-4. Click Batch Analyze
-5. ✅ Expected: Individual results per email
+After running Tests 2–5, open in browser:
+- http://localhost:8081/api/data/emails
+- http://localhost:8081/api/data/urls
+- http://localhost:8081/api/data/stats
+
+✅ You should see the analysis records returned as JSON.
 
 ---
 
-## API Direct Test (PowerShell)
+## Test 7 — API Direct Test (PowerShell)
 
 ```powershell
 $body = '{"emailContent":"URGENT PayPal suspended verify credit card SSN immediately fraud"}'
 Invoke-WebRequest -Uri "http://localhost:8081/api/analyze-email" -Method POST -ContentType "application/json" -Body $body -UseBasicParsing | Select-Object -ExpandProperty Content | ConvertFrom-Json | Select-Object -ExpandProperty data
 ```
+
+---
+
+## Test 8 — Download Data
+
+- Email JSON: http://localhost:8081/api/download/emails/download-json
+- Email CSV: http://localhost:8081/api/download/emails/download-csv
+- URL JSON: http://localhost:8081/api/download/urls/download-json
+- URL CSV: http://localhost:8081/api/download/urls/download-csv

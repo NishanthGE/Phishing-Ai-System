@@ -1,181 +1,180 @@
 /**
- * Data Store - In-Memory Data Storage for Analysis Results
- * Stores all email and URL analyses for backend viewing
+ * Data Store — MongoDB-backed with in-memory fallback
+ * src/backend/utils/dataStore.js
  */
 
-class DataStore {
-    constructor() {
-        this.emailAnalyses = [];
-        this.urlAnalyses = [];
-        this.analysisId = 1;
-    }
+const { isDBConnected } = require('../config/db');
+const EmailAnalysis = require('../models/EmailAnalysis');
+const URLAnalysis = require('../models/URLAnalysis');
 
-    /**
-     * Save email analysis result
-     */
-    saveEmailAnalysis(emailContent, analysis) {
-        const record = {
-            id: this.analysisId++,
-            type: 'email',
-            timestamp: new Date().toISOString(),
-            content: emailContent.substring(0, 200), // Store preview
-            fullContent: emailContent,
-            threatLevel: analysis.classification,
-            threatScore: analysis.threatScore,
-            confidence: analysis.confidence,
-            indicators: analysis.indicators,
-            recommendations: analysis.recommendations,
-            features: analysis.features,
-            fullAnalysis: analysis
-        };
-        
-        this.emailAnalyses.unshift(record); // Add to front
-        
-        // Keep only last 100 records
-        if (this.emailAnalyses.length > 100) {
-            this.emailAnalyses.pop();
-        }
-        
-        return record;
-    }
+// ── In-memory fallback ────────────────────────────────────────────────────────
+let memEmails = [];
+let memURLs = [];
+let memId = 1;
 
-    /**
-     * Save URL analysis result
-     */
-    saveURLAnalysis(url, analysis) {
-        const record = {
-            id: this.analysisId++,
-            type: 'url',
-            timestamp: new Date().toISOString(),
-            url: url,
-            threatLevel: analysis.classification,
-            threatScore: analysis.threatScore,
-            confidence: analysis.confidence,
-            indicators: analysis.indicators,
-            recommendations: analysis.recommendations,
-            features: analysis.features,
-            fullAnalysis: analysis
-        };
-        
-        this.urlAnalyses.unshift(record); // Add to front
-        
-        // Keep only last 100 records
-        if (this.urlAnalyses.length > 100) {
-            this.urlAnalyses.pop();
-        }
-        
-        return record;
-    }
-
-    /**
-     * Get all email analyses
-     */
-    getEmailAnalyses(limit = 50) {
-        return {
-            total: this.emailAnalyses.length,
-            items: this.emailAnalyses.slice(0, limit),
-            limit,
-            hasMore: this.emailAnalyses.length > limit
-        };
-    }
-
-    /**
-     * Get all URL analyses
-     */
-    getURLAnalyses(limit = 50) {
-        return {
-            total: this.urlAnalyses.length,
-            items: this.urlAnalyses.slice(0, limit),
-            limit,
-            hasMore: this.urlAnalyses.length > limit
-        };
-    }
-
-    /**
-     * Get all analyses (combined)
-     */
-    getAllAnalyses(limit = 100) {
-        const all = [
-            ...this.emailAnalyses.map(e => ({ ...e, category: 'email' })),
-            ...this.urlAnalyses.map(u => ({ ...u, category: 'url' }))
-        ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        return {
-            emailCount: this.emailAnalyses.length,
-            urlCount: this.urlAnalyses.length,
-            totalCount: all.length,
-            items: all.slice(0, limit),
-            limit,
-            hasMore: all.length > limit
-        };
-    }
-
-    /**
-     * Get single email analysis by ID
-     */
-    getEmailAnalysisById(id) {
-        return this.emailAnalyses.find(e => e.id === parseInt(id));
-    }
-
-    /**
-     * Get single URL analysis by ID
-     */
-    getURLAnalysisById(id) {
-        return this.urlAnalyses.find(u => u.id === parseInt(id));
-    }
-
-    /**
-     * Get statistics
-     */
-    getStats() {
-        const stats = {
-            emailAnalyses: this.emailAnalyses.length,
-            urlAnalyses: this.urlAnalyses.length,
-            totalAnalyses: this.emailAnalyses.length + this.urlAnalyses.length,
-            threatDistribution: {
-                emails: this._getThreatDistribution(this.emailAnalyses),
-                urls: this._getThreatDistribution(this.urlAnalyses)
-            }
-        };
-        return stats;
-    }
-
-    /**
-     * Get threat distribution
-     */
-    _getThreatDistribution(analyses) {
-        const dist = { phishing: 0, malicious: 0, suspicious: 0, legitimate: 0 };
-        analyses.forEach(a => {
-            const threat = (a.threatLevel || 'legitimate').toLowerCase();
-            if (dist.hasOwnProperty(threat)) {
-                dist[threat]++;
-            }
-        });
-        return dist;
-    }
-
-    /**
-     * Clear all data
-     */
-    clearAll() {
-        this.emailAnalyses = [];
-        this.urlAnalyses = [];
-    }
-
-    /**
-     * Clear email data
-     */
-    clearEmails() {
-        this.emailAnalyses = [];
-    }
-
-    /**
-     * Clear URL data
-     */
-    clearURLs() {
-        this.urlAnalyses = [];
-    }
+function memRecord(data) {
+    return { id: memId++, timestamp: new Date().toISOString(), ...data };
 }
 
-// Export singleton instance
+class DataStore {
+    // ── Email ──────────────────────────────────────────────────────────────────
+
+    async saveEmailAnalysis(emailContent, analysis) {
+        const payload = {
+            type: 'email',
+            content: emailContent.substring(0, 200),
+            fullContent: emailContent,
+            subject: emailContent.match(/Subject:\s*(.*)/i)?.[1] || 'No Subject',
+            classification: analysis.classification,
+            threatScore: analysis.threatScore,
+            isPhishing: analysis.classification === 'Phishing',
+            confidence: analysis.confidence,
+            indicators: analysis.indicators,
+            recommendations: analysis.recommendations,
+            features: analysis.features,
+            fullAnalysis: analysis,
+        };
+
+        if (isDBConnected()) {
+            const doc = await EmailAnalysis.create(payload);
+            return { id: doc._id, ...payload };
+        }
+        const record = memRecord(payload);
+        memEmails.unshift(record);
+        if (memEmails.length > 100) memEmails.pop();
+        return record;
+    }
+
+    async getEmailAnalyses(limit = 50) {
+        if (isDBConnected()) {
+            const total = await EmailAnalysis.countDocuments();
+            const items = await EmailAnalysis.find().sort({ createdAt: -1 }).limit(limit).lean();
+            return { total, items, limit, hasMore: total > limit };
+        }
+        return {
+            total: memEmails.length,
+            items: memEmails.slice(0, limit),
+            limit,
+            hasMore: memEmails.length > limit,
+        };
+    }
+
+    async getEmailAnalysisById(id) {
+        if (isDBConnected()) {
+            return await EmailAnalysis.findById(id).lean();
+        }
+        return memEmails.find(e => String(e.id) === String(id));
+    }
+
+    // ── URL ───────────────────────────────────────────────────────────────────
+
+    async saveURLAnalysis(url, analysis) {
+        const payload = {
+            type: 'url',
+            url,
+            classification: analysis.classification,
+            threatScore: analysis.threatScore,
+            isMalicious: analysis.classification === 'Malicious',
+            confidence: analysis.confidence,
+            indicators: analysis.indicators,
+            recommendations: analysis.recommendations,
+            features: analysis.features,
+            fullAnalysis: analysis,
+        };
+
+        if (isDBConnected()) {
+            const doc = await URLAnalysis.create(payload);
+            return { id: doc._id, ...payload };
+        }
+        const record = memRecord(payload);
+        memURLs.unshift(record);
+        if (memURLs.length > 100) memURLs.pop();
+        return record;
+    }
+
+    async getURLAnalyses(limit = 50) {
+        if (isDBConnected()) {
+            const total = await URLAnalysis.countDocuments();
+            const items = await URLAnalysis.find().sort({ createdAt: -1 }).limit(limit).lean();
+            return { total, items, limit, hasMore: total > limit };
+        }
+        return {
+            total: memURLs.length,
+            items: memURLs.slice(0, limit),
+            limit,
+            hasMore: memURLs.length > limit,
+        };
+    }
+
+    async getURLAnalysisById(id) {
+        if (isDBConnected()) {
+            return await URLAnalysis.findById(id).lean();
+        }
+        return memURLs.find(u => String(u.id) === String(id));
+    }
+
+    // ── Combined ──────────────────────────────────────────────────────────────
+
+    async getAllAnalyses(limit = 100) {
+        if (isDBConnected()) {
+            const emailCount = await EmailAnalysis.countDocuments();
+            const urlCount = await URLAnalysis.countDocuments();
+            const emails = await EmailAnalysis.find().sort({ createdAt: -1 }).limit(limit).lean();
+            const urls = await URLAnalysis.find().sort({ createdAt: -1 }).limit(limit).lean();
+            const all = [...emails.map(e => ({ ...e, category: 'email' })),
+                        ...urls.map(u => ({ ...u, category: 'url' }))]
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .slice(0, limit);
+            return { emailCount, urlCount, totalCount: emailCount + urlCount, items: all, limit, hasMore: (emailCount + urlCount) > limit };
+        }
+        const all = [
+            ...memEmails.map(e => ({ ...e, category: 'email' })),
+            ...memURLs.map(u => ({ ...u, category: 'url' })),
+        ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return { emailCount: memEmails.length, urlCount: memURLs.length, totalCount: all.length, items: all.slice(0, limit), limit, hasMore: all.length > limit };
+    }
+
+    async getStats() {
+        if (isDBConnected()) {
+            const emailCount = await EmailAnalysis.countDocuments();
+            const urlCount = await URLAnalysis.countDocuments();
+            const phishingEmails = await EmailAnalysis.countDocuments({ classification: 'Phishing' });
+            const suspiciousEmails = await EmailAnalysis.countDocuments({ classification: 'Suspicious' });
+            const maliciousURLs = await URLAnalysis.countDocuments({ classification: 'Malicious' });
+            const suspiciousURLs = await URLAnalysis.countDocuments({ classification: 'Suspicious' });
+            return {
+                emailAnalyses: emailCount,
+                urlAnalyses: urlCount,
+                totalAnalyses: emailCount + urlCount,
+                threatDistribution: {
+                    emails: { phishing: phishingEmails, suspicious: suspiciousEmails, safe: emailCount - phishingEmails - suspiciousEmails },
+                    urls: { malicious: maliciousURLs, suspicious: suspiciousURLs, safe: urlCount - maliciousURLs - suspiciousURLs },
+                },
+                storage: 'mongodb',
+            };
+        }
+        return {
+            emailAnalyses: memEmails.length,
+            urlAnalyses: memURLs.length,
+            totalAnalyses: memEmails.length + memURLs.length,
+            storage: 'memory',
+        };
+    }
+
+    async clearAll() {
+        if (isDBConnected()) {
+            await EmailAnalysis.deleteMany({});
+            await URLAnalysis.deleteMany({});
+            return true;
+        }
+        memEmails = [];
+        memURLs = [];
+        return true;
+    }
+
+    // Legacy sync methods kept for backward-compat (used by store/dataStore route shortcuts)
+    getAllEmails() { return isDBConnected() ? [] : memEmails; }
+    getAllURLs()   { return isDBConnected() ? [] : memURLs; }
+}
+
 module.exports = new DataStore();

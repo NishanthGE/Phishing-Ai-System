@@ -10,6 +10,9 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
+// Database connection
+const { connectDB } = require('./config/db');
+
 // Import routes
 const emailRoutes = require('./routes/emailRoutes');
 const urlRoutes = require('./routes/urlRoutes');
@@ -228,27 +231,36 @@ process.on('SIGINT', () => {
 });
 
 // Start server
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log('\n🚀 AI-Based Phishing Detection System');
-    console.log('=====================================');
-    console.log(`🔧 Backend API running on: http://localhost:${PORT}`);
-    console.log(`📚 API Docs: http://localhost:${PORT}/api/docs`);
-    console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
-    console.log('\n📧 Email Analysis Endpoints:');
-    console.log(`   POST /api/analyze-email`);
-    console.log(`   POST /api/analyze-emails-batch`);
-    console.log(`   GET  /api/email-stats`);
-    console.log('\n🔗 URL Analysis Endpoints:');
-    console.log(`   POST /api/analyze-url`);
-    console.log(`   POST /api/analyze-urls-batch`);
-    console.log(`   GET  /api/url-stats`);
-    console.log('\n🛡️  Security Features:');
-    console.log('   ✅ Helmet security headers');
-    console.log('   ✅ CORS protection');
-    console.log('   ✅ Rate limiting');
-    console.log('   ✅ Request validation');
-    console.log('\n🎯 Ready for cybersecurity analysis!');
-    console.log('=====================================\n');
-});
+(async () => {
+    // Connect to MongoDB (falls back to in-memory if unavailable)
+    await connectDB();
+
+    const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log('\n🚀 AI-Based Phishing Detection System');
+        console.log('=====================================');
+        console.log(`🔧 Backend API running on: http://localhost:${PORT}`);
+        console.log(`📚 API Docs: http://localhost:${PORT}/api/docs`);
+        console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
+        console.log('\n📧 Email Analysis Endpoints:');
+        console.log(`   POST /api/analyze-email`);
+        console.log(`   POST /api/analyze-emails-batch`);
+        console.log(`   GET  /api/email-stats`);
+        console.log('\n🔗 URL Analysis Endpoints:');
+        console.log(`   POST /api/analyze-url`);
+        console.log(`   POST /api/analyze-urls-batch`);
+        console.log(`   GET  /api/url-stats`);
+        console.log('\n🛡️  Security Features:');
+        console.log('   ✅ Helmet security headers');
+        console.log('   ✅ CORS protection');
+        console.log('   ✅ Rate limiting');
+        console.log('   ✅ Request validation');
+        console.log('\n🎯 Ready for cybersecurity analysis!');
+        console.log('=====================================\n');
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => server.close(() => process.exit(0)));
+    process.on('SIGINT',  () => server.close(() => process.exit(0)));
+})();
 
 module.exports = app;
